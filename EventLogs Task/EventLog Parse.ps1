@@ -58,32 +58,32 @@ if (!$EventIDHashTab) {
 foreach ($EventIDKey in $EventIDHashTab.GetEnumerator()) { 
 
     #Write-Host "$($EventIDKey.Name): $($EventIDKey.Value)"
-    $EventsByDate = $EventIDKey.Value | Group { Get-Date $_.TimeGenerated -format d }
+    $EventsByDate = $EventIDKey.Value | Group { Get-Date $_.TimeGenerated -format d } -AsHashTable
 
-    foreach ($EventDate in $EventsByDate) {
+    foreach ($EventDateKey in $EventsByDate.GetEnumerator()) {
         #Create a row
+        if (!$EventDateKey) {continue}
         $row = $table.NewRow()
         $row.EventID = [int]$EventIDKey.Name
-        $row.EventDate = $EventDate.Name
-        $row.Occurences = $EventDate.Count
-        $row.Message = $Evev
+        $row.EventDate = (Get-Date -date $EventDateKey.Name).Date
+        $row.Occurences = $EventDateKey.Value.Count
+        $row.Message = $EventDateKey.Value[0].Message
         $table.Rows.Add($row)
     }
 }
 #$table = $table | Select @{l="EventID";e={$_.EventID/1}}, EventDate, Occurences
 
-$table
-
 $pivot = @()
-foreach ($EventDate in $table.EventDate | Select -Unique | Sort) {
-    $Props = [ordered]@{ EventDate = $EventDate }
+foreach ($EventID in $table.EventID | Select -Unique | Sort) {
+    $Props = [ordered]@{ EventID = $EventID }
+    $Props += @{ Message = $table.where( {$_.EventID -eq $EventID} )[0].Message }
 
-    foreach ($EventID in $table.EventID | Select -Unique | Sort) { 
+    foreach ($EventDate in $table.EventDate | Select -Unique | Sort) {
         $Occurences = ($table.where({ $_.EventID -eq $EventID -and 
-                    $_.EventDate -eq $EventDate })).Occurences
-        $Props += @{ $EventID = $Occurences }
-
+            $_.EventDate -eq $EventDate })).Occurences
+            $formattedDate = Get-Date -date $EventDate -f "dd/MM/yyyy"
+        $Props += @{ $formattedDate = $Occurences }
     }
     $pivot += New-Object -TypeName PSObject -Property $Props
 }
-$pivot
+$pivot | Export-csv 'C:\Users\james.holloway\Desktop\test.csv'
