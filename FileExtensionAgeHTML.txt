@@ -1,0 +1,80 @@
+﻿#requires -version 2.0
+
+<#
+This is a sample script demonstrating how to use Group-Object
+As written, it is not intended as a production script. There
+are hard-coded paths for the folder to analyze and the name
+for the HTML report.
+
+DO NOT RUN IN A PRODUCTION ENVIRONMENT UNTIL YOU FULLY
+UNDERSTAND WHAT THIS SCRIPT IS DOING.
+#>
+
+$head = @'
+<style>
+body { background-color:#FFFFFF;
+       font-family:Tahoma;
+       font-size:10pt; }
+        }
+td, th { border:1px solid black; 
+         border-collapse:collapse; }
+th { color:white;
+     background-color:black; }
+table, tr, td, th { padding: 2px; margin: 0px }
+tr:nth-child(odd) {background-color: lightgray}
+table { margin-left:50px; }
+</style>
+'@
+
+#CHANGE THE PATH TO A FOLDER YOU WANT TO CHECK
+$path = "C:\scripts"
+
+$files = DIR $path -Recurse -File
+$groupExt = $files | where {$_.extension} | 
+Group-Object {$_.Extension.Substring(1)}
+ 
+#Create aging fragments
+$30days = $files | 
+where { $_.LastWritetime -ge (Get-Date).AddDays(-30) } |
+Group-object {if ($_.extension) {$_.Extension.Substring(1)}} | 
+Select Name,Count,
+@{Name="Size";Expression={($_.Group | measure-object Length -sum).sum}} |
+Sort Count -Descending | 
+ConvertTo-HTML -Fragment -PreContent "<h2>30 Days</h2>" 
+
+$90days = $files | 
+where { $_.LastWritetime -le (Get-Date).AddDays(-30) -and
+ $_.LastWritetime -ge (Get-Date).AddDays(-90) } |
+Group-object {if ($_.extension) {$_.Extension.Substring(1)}} | 
+Select Name,Count,
+@{Name="Size";Expression={($_.Group | measure-object Length -sum).sum}} |
+Sort Count -Descending | 
+ConvertTo-HTML -Fragment -PreContent "<h2>30-90 Days</h2>" 
+
+$180days = $files | 
+where { ($_.LastWritetime -le (Get-Date).AddDays(-90)) -and
+ ($_.LastWritetime -ge (Get-Date).AddDays(-180)) } |
+Group-object {if ($_.extension) {$_.Extension.Substring(1)}} | 
+Select Name,Count,
+@{Name="Size";Expression={($_.Group | measure-object Length -sum).sum}} |
+Sort Count -Descending | 
+ConvertTo-HTML -Fragment -PreContent "<h2>90-180 Days</h2>" 
+
+$1yr = $files | 
+where { ($_.LastWritetime -ge (Get-Date).AddDays(-356)) } |
+Group-object {if ($_.extension) {$_.Extension.Substring(1)}} | 
+Select Name,Count,
+@{Name="Size";Expression={($_.Group | measure-object Length -sum).sum}} |
+Sort Count -Descending | 
+ConvertTo-HTML -Fragment -PreContent "<h2>365 Days</h2>" 
+
+$summary = $groupExt | Select Name,Count,
+@{Name="Size";Expression={($_.Group | measure-object Length -sum).sum}} |
+Sort Size -descending | 
+ConvertTo-HTML -Fragment -PreContent "<h2>Report by File Extension $Path</h2>" 
+
+#create the HTML report
+#YOU WILL NEED TO CHANGE THE FILENAME AND PATH FOR THE HTM FILE
+ConvertTo-Html -head $Head -title "Extension Report for $Path" `
+-PostContent ($summary + $30days + $90days + $180days + $1yr) | 
+Out-File c:\work\extrpt.htm -Encoding ascii
