@@ -4,9 +4,9 @@
 
 # Configuration
 $searchLocation = "C:\Users\james.holloway\Google Drive\diary\"
-$modifiedSearch = "01/08/2016"
+$modifiedSearch = "19/12/2016"
 $sizeSearch = $null
-$textSearch = "*tariff*.sql"
+$textSearch = "SRT-50"
 
 function updateSearchLocation($newDir) {
   (Get-Content -Path $Script:MyInvocation.MyCommand.Path) `
@@ -85,11 +85,8 @@ function doSearch() {
 
     Write-Output $obj
   
-    <#Write-Host -BackgroundColor Black -ForegroundColor Cyan -NoNewline $result.Name
-        Write-Host -BackgroundColor Black -ForegroundColor White "`t`t" + ($result.Directory | Resolve-Path -Relative)
-  #>  }
+   }
   
-  #| Resolve-Path -Relative
 }
 
 $userInput = doMenu
@@ -111,7 +108,7 @@ switch ($userInput) {
         $assembledDate = (Get-Date -date (`
             $userInput.Substring(0,2)+ '/' + $userInput.Substring(2,2) + '/' + (get-date -f yyyy)
         ))
-        if ($assembledDate.toString("yyyy-M-dd") -gt (Get-Date).toString("yyyy-M-dd")) {
+        if ($assembledDate.toString("yyyy-MM-dd") -gt (Get-Date).toString("yyyy-MM-dd")) {
           Set-Variable -name assembledDate -value ($userInput.Substring(0,2)+ '/' + $userInput.Substring(2,2) + '/' + ((get-date -f yyyy)-1))
         }
         updateModifiedSearch($assembledDate)
@@ -129,4 +126,3 @@ switch ($userInput) {
   }
 
 }
-
