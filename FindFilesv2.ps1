@@ -3,10 +3,10 @@
 # Choose between mixture of search filters including date modified, text, size
 
 # Configuration
-$searchLocation = "C:\Users\james.holloway\Google Drive\diary\"
+$searchLocation = "C:\Users\Kayl\Google Drive"
 $modifiedSearch = "19/12/2016"
 $sizeSearch = $null
-$textSearch = "SRT-50"
+$textSearch = $null
 
 function updateSearchLocation($newDir) {
   (Get-Content -Path $Script:MyInvocation.MyCommand.Path) `
@@ -77,15 +77,16 @@ function doSearch() {
   cls
   $searchResults = Get-ChildItem -Path $searchLocation -Recurse -Filter *$textSearch*
   
-  foreach ($result in ($searchResults | Sort -property LastWriteTime -Descending)) {
-    $obj = New-Object PSObject
-    $obj | Add-Member Filename $result.Name 
-    $obj | Add-Member "Relative Dir" ($result.Directory | Resolve-Path -Relative)
-    $obj | Add-Member "Last Modified" (Get-Date -f "dd/MM/yyyy" -date $result.LastWriteTime)
+  #$searchResults | Where DirectoryName -ne $null | Measure
+    foreach ($result in ($searchResults | Where DirectoryName -ne $null | Sort -property LastWriteTime -Descending)) {
+      $obj = New-Object PSObject
+      $obj | Add-Member Filename $result.Name 
+      $obj | Add-Member "Relative Dir" ($result.DirectoryName.SubString($searchLocation.Length))
+      $obj | Add-Member "Last Modified" (Get-Date -f "dd/MM/yyyy" -date $result.LastWriteTime)
 
-    Write-Output $obj
+      Write-Output $obj
   
-   }
+    }
   
 }
 
