@@ -3,10 +3,10 @@
 # Choose between mixture of search filters including date modified, text, size
 
 # Configuration
-$searchLocation = "C:\Users\Kayl\Google Drive"
+$searchLocation = "c:\users\james.holloway\Google Drive"
 $modifiedSearch = "19/12/2016"
 $sizeSearch = $null
-$textSearch = $null
+$textSearch = "margin"
 
 function updateSearchLocation($newDir) {
   (Get-Content -Path $Script:MyInvocation.MyCommand.Path) `
