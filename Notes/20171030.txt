@@ -1,9 +1,0 @@
-﻿eSendex VPN details
-gs2vpn.esendex.com: 2 max users for datacentre access
-vpn.esendex.com: for Nottingham (esendex domain) access. Note that you can get to dataopsadmin-01 via notmon notsqlvm01 if the gs2 vpn has max connections.
-
-Powershell
-Test-Connection -ComputerName sql-03.datacentre.esendex.com
-Test-Connection -ComputerName sql-03.datacentre.esendex.com -Source sql-02.datacentre.esendex.com
-
-nslookup sql-03.datacentre.esendex.com

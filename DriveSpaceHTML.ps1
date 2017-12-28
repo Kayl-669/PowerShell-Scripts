@@ -1,5 +1,4 @@
-﻿<#
-$htmlHead = @"
+﻿$htmlHead = @"
 <style>
 *, *:before, *:after {
   -moz-box-sizing: border-box;
@@ -58,6 +57,7 @@ tfoot td {
 
 </style>
 "@
+<#
 $getDriveDetails = {
     # Create an array and add to it - even if only one result this ensures an array exists
     $driveInfo = @() 
@@ -78,20 +78,35 @@ $resultsArray += Invoke-Command -ComputerName 52.166.179.143 -ScriptBlock $getDr
 $resultsArray | Select @{Name='Capture Date';Expression={Get-Date -f d}}, PSComputerName, Name, Free, Capacity | Export-CSV -Append -Force 'C:\Users\james.holloway\Desktop\test.csv'
 #>
 
-$resultsArray = Import-Csv 'C:\Users\james.holloway\Desktop\test.csv'
+$resultsArray = Import-Csv 'C:\Users\Kayl\Documents\PowerShell-Scripts\Dev\test.csv'
 
 # for each host
 # for each drive
 # get last 3 results
 # use days between calculation and difference in usage to get average daily usage
-
+$outputArray = @()
+$daysUsed  = 3
 foreach ($hostName in ($resultsArray | Sort PSComputerName | Select -Unique PSComputerName).PSComputerName) {
+
     foreach ($drive in ($resultsArray | Where { $_.PSComputerName -eq $hostName } | Sort Name | Select -Unique Name).Name) {
-        $hashBank = @{}
-        foreach ($day in ($resultsArray | Where { ($_.PSComputerName -eq $hostName) -and ($_.Name -eq $drive) } | Sort -Desc 'Capture Date' | Select -First 3 'Capture Date').'Capture Date') {
-            $day
-        }
+
+        $lastDay = ($resultsArray | Where { ($_.PSComputerName -eq $hostName) -and ($_.Name -eq $drive) } | Sort -Desc 'Capture Date' | Select -First 1)
+        $firstDay = ($resultsArray | Where { ($_.PSComputerName -eq $hostName) -and ($_.Name -eq $drive) } | Sort -Desc 'Capture Date' | Select -First $daysUsed | Sort 'Capture Date' | Select -First 1)
+        $daysBetween = (New-TimeSpan $firstDay.'Capture Date' $lastDay.'Capture Date').Days
+        $spaceDiff = $firstDay.Free - $lastDay.Free # negative if free space has grown
+        $diffPerDay = $spaceDiff / $daysBetween
+        $daysRemaining = $lastDay.Capacity / $diffPerDay
+        
+        $obj = New-Object -TypeName PSObject
+        $obj | Add-Member -MemberType NoteProperty -Name Host -value $hostName
+        $obj | Add-Member -MemberType NoteProperty -Name Drive -value $drive
+        $obj | Add-Member -MemberType NoteProperty -Name DaysUsed -value ([math]::Max($daysBetween,$daysUsed))
+        $obj | Add-Member -MemberType NoteProperty -Name 'AverageUsage (mb)' -value ([math]::Round(($diffPerDay / 1MB)))
+        $obj | Add-Member -MemberType NoteProperty -Name DaysRemaining -value ([math]::Round($daysRemaining,1))
+        
+        $outputArray += $obj
+       
     }
 }
 
-#$resultsArray | ConvertTo-Html -head $htmlHead  | Sort -Descending 'Capture Date', Free | Out-File 'C:\Users\james.holloway\Desktop\test.html'
+$outputArray | ConvertTo-Html -head $htmlHead  | Sort -Descending 'Capture Date', Free | Out-File 'C:\Users\Kayl\Documents\PowerShell-Scripts\Dev\test.html'
