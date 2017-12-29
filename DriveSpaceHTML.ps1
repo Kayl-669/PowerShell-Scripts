@@ -57,7 +57,20 @@ tfoot td {
 
 </style>
 "@
-<#
+$hostsArray = Get-Content 'C:\Users\james.holloway\Google Drive\Toolkit\DBA\esendexHosts.txt'
+if (!$datacentreCredential) {
+    $datacentreCredential = Get-Credential -Credential 'datacentre\x'
+}
+if (!$datacentreCredential) { exit }
+if (!$cSSMSCredential) {
+    $cSSMSCredential = Get-Credential -Credential 'cssms\x'
+}
+if (!$cSSMSCredential) { exit }
+if (!$cSVoiceCredential) {
+    $cSVoiceCredential = Get-Credential -Credential 'csvoice\x'
+}
+if (!$cSVoiceCredential) { exit }
+
 $getDriveDetails = {
     # Create an array and add to it - even if only one result this ensures an array exists
     $driveInfo = @() 
@@ -74,11 +87,27 @@ $getDriveDetails = {
     $outputArray
 }
 $resultsArray = @()
-$resultsArray += Invoke-Command -ComputerName 52.166.179.143 -ScriptBlock $getDriveDetails -Credential $cred
-$resultsArray | Select @{Name='Capture Date';Expression={Get-Date -f d}}, PSComputerName, Name, Free, Capacity | Export-CSV -Append -Force 'C:\Users\james.holloway\Desktop\test.csv'
-#>
 
-$resultsArray = Import-Csv 'C:\Users\Kayl\Documents\PowerShell-Scripts\Dev\test.csv'
+foreach ($sqlHost in $hostsArray) {
+    if ($sqlHost -match "datacentre") {
+        $thisCredential = $datacentreCredential
+    }
+    elseif ($sqlHost -match "cssms") {
+        $thisCredential = $cSSMSCredential
+    }
+    elseif ($sqlHost -match "csvoice") {
+        $thisCredential = $cSVoiceCredential
+    }
+    $resultsArray += Invoke-Command -ComputerName $sqlHost -ScriptBlock $getDriveDetails -Credential $thisCredential
+    Write-Host "Finished on $sqlHost"
+
+}
+$resultsArray | Select @{Name='Capture Date';Expression={Get-Date -f d}}, PSComputerName, Name, Free, Capacity | Export-CSV -Append -Force 'C:\Users\james.holloway\Google Drive\Daily Checks\DriveSpace.csv' -NoTypeInformation
+
+# --------------
+<#
+
+$resultsArray = Import-Csv 'C:\Users\james.holloway\Google Drive\Daily Checks\DriveSpace_20171229.csv'
 
 # for each host
 # for each drive
@@ -110,3 +139,4 @@ foreach ($hostName in ($resultsArray | Sort PSComputerName | Select -Unique PSCo
 }
 
 $outputArray | ConvertTo-Html -head $htmlHead  | Sort -Descending 'Capture Date', Free | Out-File 'C:\Users\Kayl\Documents\PowerShell-Scripts\Dev\test.html'
+#>
