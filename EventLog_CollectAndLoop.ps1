@@ -2,13 +2,28 @@
 # Loop through $hostsArray hosts and fire off EventLog_Retrieve script remotely to gather eventlog events
 $hostsArray = Get-Content 'C:\Users\james.holloway\Google Drive\Toolkit\DBA\esendexHosts.txt'
 $eventsLogScript = 'C:\Users\james.holloway\Google Drive\cmd and powershell\EventLog_Retrieve.ps1'
-$credential = Get-Credential
+$datacentreCredential = Get-Credential -Credential 'datacentre\x'
+if (!$datacentreCredential) { exit }
+$cSSMSCredential = Get-Credential -Credential 'cssms\x'
+if (!$cSSMSCredential) { exit }
+$cSVoiceCredential = Get-Credential -Credential 'csvoice\x'
+if (!$cSVoiceCredential) { exit }
 $eventsArray = @()
 
 foreach ($sqlHost in $hostsArray) {
-    $session = New-PSSession -ComputerName $sqlHost -Credential $credential
+    if ($sqlHost -match "datacentre") {
+        $thisCredential = $datacentreCredential
+    }
+    elseif ($sqlHost -match "cssms") {
+        $thisCredential = $cSSMSCredential
+    }
+    elseif ($sqlHost -match "csvoice") {
+        $thisCredential = $cSVoiceCredential
+    }
+    $session = New-PSSession -ComputerName $sqlHost -Credential $thisCredential
     $eventsArray += Invoke-Command -Session $session -FilePath $eventsLogScript
     Remove-PSSession -Session $session
+    Write-Host "Closed remote session to $sqlHost"
 }
 $eventIDHashTab = $eventsArray | Group-Object EventID -AsHashTable
 
@@ -48,9 +63,7 @@ foreach ($EventIDKey in $eventIDHashTab.GetEnumerator()) {
             $row.Message = $EventHostKey.Value[0].Message
             $table.Rows.Add($row)
         }
-        
     }
-
 }
 $pivot = @()
 foreach ($EventID in $table.EventID | Select -Unique | Sort) {
@@ -66,9 +79,9 @@ foreach ($EventID in $table.EventID | Select -Unique | Sort) {
             $Occurrences = ($table.where({ $_.EventID -eq $EventID `
                 -and $_.EventDate -eq $EventDate `
                 -and $_.Host -eq $sqlHost })).Occurences 
-            $Props += @{ $EventDate = $Occurrences }
+            $Props += @{ $(Get-Date -date $EventDate -Format d) = $Occurrences }
         }
         $pivot += New-Object -TypeName PSObject -Property $Props
     }
 }
-$pivot | export-csv 'C:\Users\james.holloway\Desktop\test.csv'
+$pivot | export-csv 'C:\Users\james.holloway\Google Drive\Daily Checks\EventViewer_20171229.csv' -NoTypeInformation
