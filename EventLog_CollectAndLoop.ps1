@@ -84,4 +84,4 @@ foreach ($EventID in $table.EventID | Select -Unique | Sort) {
         $pivot += New-Object -TypeName PSObject -Property $Props
     }
 }
-$pivot | export-csv 'C:\Users\james.holloway\Google Drive\Daily Checks\EventViewer_20171229.csv' -NoTypeInformation
+$pivot | export-csv 'C:\Users\james.holloway\Google Drive\Daily Checks\EventViewer_20180116.csv' -NoTypeInformation

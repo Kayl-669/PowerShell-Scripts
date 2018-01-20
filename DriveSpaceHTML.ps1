@@ -57,6 +57,7 @@ tfoot td {
 
 </style>
 "@
+
 $hostsArray = Get-Content 'C:\Users\james.holloway\Google Drive\Toolkit\DBA\esendexHosts.txt'
 if (!$datacentreCredential) {
     $datacentreCredential = Get-Credential -Credential 'datacentre\x'
@@ -68,6 +69,9 @@ if (!$cSSMSCredential) {
 if (!$cSSMSCredential) { exit }
 if (!$cSVoiceCredential) {
     $cSVoiceCredential = Get-Credential -Credential 'csvoice\x'
+}
+if (!$devLabCredential) {
+    $devLabCredential = Get-Credential -Credential 'dev.lab\x'
 }
 if (!$cSVoiceCredential) { exit }
 
@@ -98,6 +102,10 @@ foreach ($sqlHost in $hostsArray) {
     elseif ($sqlHost -match "csvoice") {
         $thisCredential = $cSVoiceCredential
     }
+    elseif ($sqlHost -match "dev.lab") {
+        $thisCredential = $devLabCredential
+    }
+    Write-Host "Starting on $sqlHost"
     $resultsArray += Invoke-Command -ComputerName $sqlHost -ScriptBlock $getDriveDetails -Credential $thisCredential
     Write-Host "Finished on $sqlHost"
 
@@ -105,9 +113,9 @@ foreach ($sqlHost in $hostsArray) {
 $resultsArray | Select @{Name='Capture Date';Expression={Get-Date -f d}}, PSComputerName, Name, Free, Capacity | Export-CSV -Append -Force 'C:\Users\james.holloway\Google Drive\Daily Checks\DriveSpace.csv' -NoTypeInformation
 
 # --------------
-<#
 
-$resultsArray = Import-Csv 'C:\Users\james.holloway\Google Drive\Daily Checks\DriveSpace_20171229.csv'
+
+$resultsArray = Import-Csv 'C:\Users\james.holloway\Google Drive\Daily Checks\DriveSpace.csv'
 
 # for each host
 # for each drive
@@ -119,12 +127,19 @@ foreach ($hostName in ($resultsArray | Sort PSComputerName | Select -Unique PSCo
 
     foreach ($drive in ($resultsArray | Where { $_.PSComputerName -eq $hostName } | Sort Name | Select -Unique Name).Name) {
 
+
         $lastDay = ($resultsArray | Where { ($_.PSComputerName -eq $hostName) -and ($_.Name -eq $drive) } | Sort -Desc 'Capture Date' | Select -First 1)
         $firstDay = ($resultsArray | Where { ($_.PSComputerName -eq $hostName) -and ($_.Name -eq $drive) } | Sort -Desc 'Capture Date' | Select -First $daysUsed | Sort 'Capture Date' | Select -First 1)
-        $daysBetween = (New-TimeSpan $firstDay.'Capture Date' $lastDay.'Capture Date').Days
-        $spaceDiff = $firstDay.Free - $lastDay.Free # negative if free space has grown
-        $diffPerDay = $spaceDiff / $daysBetween
-        $daysRemaining = $lastDay.Capacity / $diffPerDay
+        $daysBetween = (New-TimeSpan $lastDay.'Capture Date' $firstDay.'Capture Date').Days
+        $spaceDiff = $lastDay.Free - $firstDay.Free  # negative if free space has grown
+        if (!$daysBetween) {
+            $diffPerDay = -1
+            $daysRemaining = -1
+        } 
+        Else {
+            $diffPerDay = $spaceDiff / $daysBetween
+            if ($diffPerDay = 0) {$daysRemaining = -1} else {$daysRemaining = $lastDay.Capacity / $diffPerDay}
+        }
         
         $obj = New-Object -TypeName PSObject
         $obj | Add-Member -MemberType NoteProperty -Name Host -value $hostName
@@ -134,9 +149,7 @@ foreach ($hostName in ($resultsArray | Sort PSComputerName | Select -Unique PSCo
         $obj | Add-Member -MemberType NoteProperty -Name DaysRemaining -value ([math]::Round($daysRemaining,1))
         
         $outputArray += $obj
-       
+
     }
 }
-
-$outputArray | ConvertTo-Html -head $htmlHead  | Sort -Descending 'Capture Date', Free | Out-File 'C:\Users\Kayl\Documents\PowerShell-Scripts\Dev\test.html'
-#>
+$outputArray #| ConvertTo-Html -head $htmlHead | Sort -Descending 'Capture Date', Free | Out-File 'C:\Users\james.holloway\Google Drive\Daily Checks\test.html'
