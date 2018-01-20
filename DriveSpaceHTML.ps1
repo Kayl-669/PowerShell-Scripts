@@ -72,9 +72,8 @@ if (!$cSVoiceCredential) {
 if (!$cSVoiceCredential) { exit }
 
 $getDriveDetails = {
-    # Create an array and add to it - even if only one result this ensures an array exists
-    $driveInfo = @() 
-    $driveInfo += get-psdrive | where { $_.name.Length -eq 1 -and $_.used -gt 0 }
+    # ensure an array exists
+    $driveInfo = @(get-psdrive | where { $_.name.Length -eq 1 -and $_.used -gt 0 }) 
 
     $outputArray = @()
     foreach ($drive in $driveInfo) {
