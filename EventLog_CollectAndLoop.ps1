@@ -84,4 +84,5 @@ foreach ($EventID in $table.EventID | Select -Unique | Sort) {
         $pivot += New-Object -TypeName PSObject -Property $Props
     }
 }
-$pivot | export-csv 'C:\Users\james.holloway\Google Drive\Daily Checks\EventViewer_20180116.csv' -NoTypeInformation
+$dateString = [string] (get-date -f "yyyy") + [string] (get-date -f "MM") + [string] (get-date -f "dd")
+$pivot | export-csv ('C:\Users\james.holloway\Google Drive\Daily Checks\EventViewer_'+ $dateString +'.csv') -NoTypeInformation

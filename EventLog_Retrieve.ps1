@@ -3,21 +3,21 @@
 $allEvents += get-eventlog `
     -newest 1000 `
     -LogName system `
-    -EntryType Warning `
+    -EntryType Error `
     -ErrorAction SilentlyContinue `
     -After (Get-Date).AddDays(-7)
 
 $allEvents += get-eventlog `
     -newest 1000 `
     -LogName security `
-    -EntryType Warning `
+    -EntryType Error `
     -ErrorAction SilentlyContinue `
     -After (Get-Date).AddDays(-7)
 
 $allEvents += get-eventlog `
     -newest 1000 `
     -LogName application `
-    -EntryType Warning `
+    -EntryType Error `
     -ErrorAction SilentlyContinue `
     -After (Get-Date).AddDays(-7)
 
