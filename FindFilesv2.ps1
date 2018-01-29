@@ -6,7 +6,7 @@
 $searchLocation = "c:\users\james.holloway\Google Drive"
 $modifiedSearch = "19/12/2016"
 $sizeSearch = $null
-$textSearch = "vcs"
+$textSearch = "tariff*.sql"
 
 function updateSearchLocation($newDir) {
   (Get-Content -Path $Script:MyInvocation.MyCommand.Path) `
