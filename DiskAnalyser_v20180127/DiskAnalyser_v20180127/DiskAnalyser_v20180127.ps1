@@ -65,7 +65,8 @@ function getUsageAnalysis([string] $hostname, [char] $drive, [int] $aveToUseInDa
 		| Sort snapshotDate `
 		| Select -First 1
 	
-	if ($mostRecentDay.snapshotDate -eq $earliestDay.snapshotDate) {
+	$daysBetween = (New-TimeSpan $earliestDay.snapshotDate $mostRecentDay.snapshotDate).Days
+	if ($daysBetweeen -eq 0) {
 		$obj = New-Object -TypeName PSObject
 		$obj | Add-Member -MemberType NoteProperty -Name Host -value $hostName
 		$obj | Add-Member -MemberType NoteProperty -Name Drive -value $drive
@@ -74,8 +75,17 @@ function getUsageAnalysis([string] $hostname, [char] $drive, [int] $aveToUseInDa
 		$obj | Add-Member -MemberType NoteProperty -Name $([string] $aveToUseInDays +'d ' +'DaysRemaining') -value -1   
 		return 0,$obj
 	}
-    $daysBetween = (New-TimeSpan $earliestDay.snapshotDate $mostRecentDay.snapshotDate).Days
+
     $spaceDiff = $mostRecentDay.driveFreeBytes - $earliestDay.driveFreeBytes
+	if ($spaceDiff -eq 0) {
+		$obj = New-Object -TypeName PSObject
+		$obj | Add-Member -MemberType NoteProperty -Name Host -value $hostName
+		$obj | Add-Member -MemberType NoteProperty -Name Drive -value $drive
+		$obj | Add-Member -MemberType NoteProperty -Name 'FreeSpace (gb)' -value ([math]::Round($($mostRecentDay.driveFreeBytes /1Gb)))
+		$obj | Add-Member -MemberType NoteProperty -Name $([string] $aveToUseInDays +'d '+'AverageUsage (mb)') -value 0
+		$obj | Add-Member -MemberType NoteProperty -Name $([string] $aveToUseInDays +'d ' +'DaysRemaining') -value -1   
+		return 0,$obj
+	}
 	Write-Debug $("`$mostRecentDay.snapshotDate: " + $mostRecentDay.snapshotDate)
 	Write-Debug $("`$earliest.snapshotDate: " + $earliestDay.snapshotDate)
 	Write-Debug $("`$daysBetween: " + $daysBetween)
@@ -100,7 +110,7 @@ function main {
 	# Remove records from CSV store file older than [retention param]
 	$snapShotData = @($snapShotData | Where-Object { (Get-Date -date $_.snapshotDate) -ge $((Get-Date).AddDays(-$recordRetentionInDays-1)) })
 
-	$snapshotData += $hostsArray | foreach { getHostDriveData $_ }
+	#$snapshotData += $hostsArray | foreach { getHostDriveData $_ }
 	
 	$snapShotData | Export-Csv $dataStoreCSVPath -NoTypeInformation
 	$outputArray = @()
@@ -115,6 +125,7 @@ function main {
 				Write-Debug $("`$i: $i")
 				if ($i -eq 0) {
 					$daysBetween,$driveObj = getUsageAnalysis $hostname $drive $averagesToUseInDays[$i]
+					$daysRemainingSortPropName = [string] $daysBetween +'d DaysRemaining'
 				}
 				else {
 					$daysBetween,$outObj = getUsageAnalysis $hostname $drive $averagesToUseInDays[$i]
@@ -123,7 +134,7 @@ function main {
 					$daysRemainingPropName = [string] $daysBetween +'d DaysRemaining'
 					$driveObj | Add-Member -Force -MemberType NoteProperty -Name $daysRemainingPropName -Value $outObj.$daysRemainingPropName
 				}
-				if ($i -eq $averageToSortByIndex) {
+				if ($i -eq $averageToSortByIndex -and $daysBetween -ne 0) {
 					$daysRemainingSortPropName = [string] $daysBetween +'d DaysRemaining'
 					Write-Debug $("`$daysRemainingSortPropName: $daysRemainingSortPropName")
 				}
