@@ -76,7 +76,7 @@ function getUsageAnalysis([string] $hostname, [char] $drive, [int] $aveToUseInDa
 		return 0,$obj
 	}
 
-    $spaceDiff = $mostRecentDay.driveFreeBytes - $earliestDay.driveFreeBytes
+    $spaceDiff = $earliestDay.driveFreeBytes - $mostRecentDay.driveFreeBytes
 	if ($spaceDiff -eq 0) {
 		$obj = New-Object -TypeName PSObject
 		$obj | Add-Member -MemberType NoteProperty -Name Host -value $hostName
@@ -91,7 +91,8 @@ function getUsageAnalysis([string] $hostname, [char] $drive, [int] $aveToUseInDa
 	Write-Debug $("`$daysBetween: " + $daysBetween)
 	Write-Debug $("`$spaceDiff: " + $spaceDiff)
 	$diffPerDay = $spaceDiff / $daysBetween
-	$daysRemaining = $mostRecentDay.driveCapacityBytes / $diffPerDay
+	Write-Debug $("`$mostRecentDay.driveFreeBytes: " + $mostRecentDay.driveFreeBytes)
+	$daysRemaining = $mostRecentDay.driveFreeBytes / $diffPerDay
 	Write-Debug $("`$diffPerDay: " + $diffPerDay)
 	Write-Debug $("`$daysRemaining: " + $daysRemaining)
 
@@ -115,30 +116,32 @@ function main {
 	$snapShotData | Export-Csv $dataStoreCSVPath -NoTypeInformation
 	$outputArray = @()
 	# for all hosts in snapshot repo...
-	foreach ($hostName in ($snapShotData | Sort hostname | Select -Unique hostname).hostname) {
+	foreach ($hostName in ($snapShotData | Sort hostname | Select -Unique @{Name="hostname";Expression={$_.hostName.toUpper()}}).hostname) {
 		# for all drive labels for that host...
 		Write-Host "Entering host: $hostName"
 		foreach ($drive in ($snapShotData | Where { $_.hostname -eq $hostName } | Sort drive | Select -Unique drive).drive) {
 			Write-Host "Entering drive: $drive"
-			Write-Debug $("`$averagesToUseInDays.length: " + $averagesToUseInDays.length)
-			for ($i = 0; $i -lt $averagesToUseInDays.length; $i++) { 
-				Write-Debug $("`$i: $i")
-				if ($i -eq 0) {
-					$daysBetween,$driveObj = getUsageAnalysis $hostname $drive $averagesToUseInDays[$i]
+			#for ($i = 0; $i -lt $averagesToUseInDays.length; $i++) { 
+				#Write-Debug $("`$i: $i")
+				#if ($i -eq 0) {
+					$daysBetween,$driveObj = getUsageAnalysis $hostname $drive $averagesToUseInDays[0]
+					Write-Debug $("`$daysBetween: $daysBetween")
+					if ($daysBetween -eq 0) {continue}
+					Write-Debug $("`$driveObj: $driveObj")
+				#	$daysRemainingSortPropName = [string] $daysBetween +'d DaysRemaining'
+				#}
+				#else {
+				#	$daysBetween,$outObj = getUsageAnalysis $hostname $drive $averagesToUseInDays[$i]
+				#	$aveUsagePropName = [string] $daysBetween +'d AverageUsage (mb)'
+				#	$driveObj | Add-Member -Force -MemberType NoteProperty -Name $aveUsagePropName -Value $outObj.$aveUsagePropName
+				#	$daysRemainingPropName = [string] $daysBetween +'d DaysRemaining'
+				#	$driveObj | Add-Member -Force -MemberType NoteProperty -Name $daysRemainingPropName -Value $outObj.$daysRemainingPropName
+				#}
+				#if ($i -eq $averageToSortByIndex -and $daysBetween -ne 0) {
 					$daysRemainingSortPropName = [string] $daysBetween +'d DaysRemaining'
-				}
-				else {
-					$daysBetween,$outObj = getUsageAnalysis $hostname $drive $averagesToUseInDays[$i]
-					$aveUsagePropName = [string] $daysBetween +'d AverageUsage (mb)'
-					$driveObj | Add-Member -Force -MemberType NoteProperty -Name $aveUsagePropName -Value $outObj.$aveUsagePropName
-					$daysRemainingPropName = [string] $daysBetween +'d DaysRemaining'
-					$driveObj | Add-Member -Force -MemberType NoteProperty -Name $daysRemainingPropName -Value $outObj.$daysRemainingPropName
-				}
-				if ($i -eq $averageToSortByIndex -and $daysBetween -ne 0) {
-					$daysRemainingSortPropName = [string] $daysBetween +'d DaysRemaining'
-					Write-Debug $("`$daysRemainingSortPropName: $daysRemainingSortPropName")
-				}
-			}
+				#	Write-Debug $("`$daysRemainingSortPropName: $daysRemainingSortPropName")
+				#}
+			#}
 			$outputArray += $driveObj
 		}
 	}
