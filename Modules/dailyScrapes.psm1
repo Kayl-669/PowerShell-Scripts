@@ -1,8 +1,9 @@
 ﻿Import-Module .\security.psm1
 Import-Module .\utility.psm1
-$workingLocation = 'c:\temp\dailyScrapes\working\'
-$saveLocation = 'c:\temp\dailyScrapes\'
-$hostsArray = @(Get-Content c:\temp\hosts.txt)
+$workingLocation = 'C:\Users\james.holloway\Google Drive\Daily Checks\'
+#$saveLocation = 'c:\temp\dailyScrapes\'
+$driveSpaceHosts = @(Get-Content 'C:\Users\james.holloway\Google Drive\Daily Checks\Config\driveSpaceHosts.txt')
+$eventLogHosts = @(Get-Content 'C:\Users\james.holloway\Google Drive\Daily Checks\Config\eventLogHosts.txt')
 
 function getHostDriveData([string] $fQDN) {
 	$getDriveDetailsScriptBlock = {
@@ -41,7 +42,7 @@ function getHostDriveData([string] $fQDN) {
 function doDriveScrapes() {
     $storePath = $($workingLocation + 'driveSpaceStore.csv')
     $snapshotData = Import-CSV $storePath
-    $snapshotData += $hostsArray | foreach { getHostDriveData $_ }
+    $snapshotData += $driveSpaceHosts | foreach { getHostDriveData $_ }
     $snapshotData | Export-Csv $storePath -NoTypeInformation
 }
 
@@ -49,16 +50,17 @@ function getEventLogData([string] $fQDN) {
     $getEventLogScriptBlock= {
         $entryTypes = 'Information','Warning','Error'
         $logNames = 'Application','System','Security'
-        foreach ($entryType in $entryTypes) {
+        #foreach ($entryType in $entryTypes) {
             foreach ($logName in $logNames) {
                 Get-Eventlog `
                     -newest 1000 `
                     -LogName $logName `
-                    -EntryType $entryType `
                     -ErrorAction SilentlyContinue `
                     -After (Get-Date).AddDays(-1)
+
+                                        #-EntryType $entryType `
             }
-        }
+       # }
     }
     
     Write-Host "Scraping EventLog details on $fQDN" -NoNewline
@@ -82,7 +84,7 @@ function getEventLogData([string] $fQDN) {
 function doEventLogScrapes() {
     $storePath = $($workingLocation + 'eventLogStore.csv')
     $eventsData = @(Import-CSV $storePath)
-    $eventsData += $hostsArray | foreach { getEventLogData $_ }
+    $eventsData += $eventLogHosts | foreach { getEventLogData $_ }
     $eventsData | Export-Csv $storePath -NoTypeInformation
 }
 

@@ -1,5 +1,5 @@
 ﻿$credentialMap = @{}
-$pathToDefaultUsers = 'c:\temp\defaultUsers.txt'
+$pathToDefaultUsers = 'C:\Users\james.holloway\Google Drive\Daily Checks\Config\defaultUsers.txt'
 $defaultUsersMap = Get-Content -Raw $pathToDefaultUsers | ConvertFrom-StringData
 
 function getCredentialForHost([string] $fQDN) {

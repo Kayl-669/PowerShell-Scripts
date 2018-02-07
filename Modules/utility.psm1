@@ -102,7 +102,7 @@ function Write-Log
 }
 
 function analyseEventLogStore([int] $acrossDays) {
-    $eventLogStore = 'c:\temp\dailyScrapes\working\eventLogStore.csv'
+    $eventLogStore = 'C:\Users\james.holloway\Google Drive\Daily Checks\eventLogStore.csv'
     $events = Import-Csv $eventLogStore `
         | Select @{Name="EventDate";Expression={Get-Date -date $_.TimeGenerated -f "dd/MM/yyyy"}} `
             ,Hostname `
@@ -176,12 +176,12 @@ function analyseEventLogStore([int] $acrossDays) {
         }
     }
     $dateString = [string] (get-date -f "yyyy") + [string] (get-date -f "MM") + [string] (get-date -f "dd")
-    $pivot | export-csv ('C:\temp\EventViewer_'+ $dateString +'.csv') -NoTypeInformation
+    $pivot | export-csv ('C:\Users\james.holloway\Google Drive\Daily Checks\EventViewer_'+ $dateString +'.csv') -NoTypeInformation
     
 }
 
 function analyseReportSchedulerLog() {
-    $pathToSchedulerLog = 'c:\temp\com.esendex.scheduler_2.txt'
+    $pathToSchedulerLog = 'C:\Users\james.holloway\Google Drive\Daily Checks\com.esendex.scheduler.txt'
     $logLines = Get-Content $pathToSchedulerLog
     $preableFormat = '^\[(?<ts>\d\d\d\d-\d\d-\d\d\s\d\d:\d\d:\d\d),\d\d\d\]\s\[(?<th>.\d)\]\s\[(?<level>\w\w\w\w\s)\]\s-\s' 
     $runningReportPattern = '\d\d:\d\d Running report : (?<rn>.*)\s-\sdue\s(?<rd>\d\d\/\d\d\/\d\d\d\d)'
@@ -241,15 +241,96 @@ function analyseReportSchedulerLog() {
                 $rowToUpdate.EndTime = $matches.ts
                 $rowToUpdate.SecondsTaken = $matches.cs
             }
-
-
-            #$c++
-            #if ($c -eq 3) {break}
         }
         else {
             # error info here
-            $errInfo += @($logLine)
+            $errInfo = @($logLine)
         }
     }
-    $table | export-csv 'c:\temp\parsedSchedulerLog.csv' -NoTypeInformation
+    $table | export-csv 'C:\Users\james.holloway\Google Drive\Daily Checks\parsedSchedulerLog.csv' -NoTypeInformation -Append
 }
+
+$driveDataCsvPath = 'C:\Users\james.holloway\Google Drive\Daily Checks\driveSpaceStore.csv'
+
+function getUsageAnalysis([string] $hostname, [char] $drive, [int] $aveToUseInDays) {
+
+	$driveData = $driveData `
+		| Where { ($_.hostname -eq $hostName) -and ($_.drive -eq $drive) } `
+		| Select -Property @{Name="snapshotDate";Expression={Get-Date -date $_.snapshotDate}},hostname,drive,driveFreeBytes,driveCapacityBytes `
+		| Sort -Desc snapshotDate
+
+	$mostRecentDay = $driveData | Select -First 1
+    $earliestDay = $driveData `
+		| Select -First $aveToUseInDays `
+		| Sort snapshotDate `
+		| Select -First 1
+	
+	$daysBetween = (New-TimeSpan $earliestDay.snapshotDate $mostRecentDay.snapshotDate).Days
+	if ($daysBetweeen -eq 0) {
+		$obj = New-Object -TypeName PSObject
+		$obj | Add-Member -MemberType NoteProperty -Name Host -value $hostName
+		$obj | Add-Member -MemberType NoteProperty -Name Drive -value $drive
+		$obj | Add-Member -MemberType NoteProperty -Name 'FreeSpace (gb)' -value ([math]::Round($($mostRecentDay.driveFreeBytes /1Gb)))
+		$obj | Add-Member -MemberType NoteProperty -Name $([string] $aveToUseInDays +'d '+'AverageUsage (mb)') -value -1
+		$obj | Add-Member -MemberType NoteProperty -Name $([string] $aveToUseInDays +'d ' +'DaysRemaining') -value -1   
+		return 0,$obj
+	}
+
+    $spaceDiff = $earliestDay.driveFreeBytes - $mostRecentDay.driveFreeBytes
+	if ($spaceDiff -eq 0) {
+		$obj = New-Object -TypeName PSObject
+		$obj | Add-Member -MemberType NoteProperty -Name Host -value $hostName
+		$obj | Add-Member -MemberType NoteProperty -Name Drive -value $drive
+		$obj | Add-Member -MemberType NoteProperty -Name 'FreeSpace (gb)' -value ([math]::Round($($mostRecentDay.driveFreeBytes /1Gb)))
+		$obj | Add-Member -MemberType NoteProperty -Name $([string] $aveToUseInDays +'d '+'AverageUsage (mb)') -value 0
+		$obj | Add-Member -MemberType NoteProperty -Name $([string] $aveToUseInDays +'d ' +'DaysRemaining') -value -1   
+		return 0,$obj
+	}
+	Write-Debug $("`$mostRecentDay.snapshotDate: " + $mostRecentDay.snapshotDate)
+	Write-Debug $("`$earliest.snapshotDate: " + $earliestDay.snapshotDate)
+	Write-Debug $("`$daysBetween: " + $daysBetween)
+	Write-Debug $("`$spaceDiff: " + $spaceDiff)
+	$diffPerDay = $spaceDiff / $daysBetween
+	Write-Debug $("`$mostRecentDay.driveFreeBytes: " + $mostRecentDay.driveFreeBytes)
+	$daysRemaining = $mostRecentDay.driveFreeBytes / $diffPerDay
+	Write-Debug $("`$diffPerDay: " + $diffPerDay)
+	Write-Debug $("`$daysRemaining: " + $daysRemaining)
+
+    $obj = New-Object -TypeName PSObject
+    $obj | Add-Member -MemberType NoteProperty -Name Host -value $hostName
+    $obj | Add-Member -MemberType NoteProperty -Name Drive -value $drive
+	$obj | Add-Member -MemberType NoteProperty -Name 'FreeSpace (gb)' -value ([math]::Round($($mostRecentDay.driveFreeBytes /1Gb)))
+    #$obj | Add-Member -MemberType NoteProperty -Name $([string] $daysBetween +'d '+'AverageUsage (mb)') -value ([math]::Round(($diffPerDay / 1MB)))
+    #$obj | Add-Member -MemberType NoteProperty -Name $([string] $daysBetween +'d ' +'DaysRemaining') -value ([math]::Round($daysRemaining,1))    
+    $obj | Add-Member -MemberType NoteProperty -Name 'AverageUsage (mb)' -value ([math]::Round(($diffPerDay / 1MB)))
+    $obj | Add-Member -MemberType NoteProperty -Name 'DaysRemaining' -value ([math]::Round($daysRemaining,1))    
+    $daysBetween,$obj
+}
+
+function analyseDiskUsage {
+    $driveData = Import-Csv $driveDataCsvPath
+
+    $outputArray = @()
+	# for all hosts in snapshot repo...
+	foreach ($hostName in ($driveData | Sort hostname | Select -Unique @{Name="hostname";Expression={$_.hostName.toUpper()}}).hostname) {
+		# for all drive labels for that host...
+		Write-Debug "Entering host: $hostName"
+		foreach ($drive in ($driveData | Where { $_.hostname -eq $hostName } | Sort drive | Select -Unique drive).drive) {
+			Write-Debug "Entering drive: $drive"
+			$daysBetween,$driveObj = getUsageAnalysis $hostname $drive 5
+			Write-Debug $("`$daysBetween: $daysBetween")
+			if ($daysBetween -eq 0) {continue}
+			Write-Debug $("`$driveObj: $driveObj")
+
+			#$daysRemainingSortPropName = [string] $daysBetween +'d DaysRemaining'
+
+			$outputArray += $driveObj
+		}
+	}
+	$outputArray | Export-Csv 'C:\Users\james.holloway\Google Drive\Daily Checks\analysedDriveSpace.csv' -NoTypeInformation
+
+}
+Export-ModuleMember Write-Log
+Export-ModuleMember analyseReportSchedulerLog
+Export-ModuleMember analyseDiskUsage
+Export-ModuleMember analyseEventLogStore
