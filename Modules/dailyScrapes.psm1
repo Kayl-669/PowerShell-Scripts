@@ -1,5 +1,5 @@
-﻿Import-Module .\security.psm1
-Import-Module .\utility.psm1
+﻿Import-Module -force .\security.psm1
+Import-Module -force .\utility.psm1
 $workingLocation = 'C:\Users\james.holloway\Google Drive\Daily Checks\'
 #$saveLocation = 'c:\temp\dailyScrapes\'
 $driveSpaceHosts = @(Get-Content 'C:\Users\james.holloway\Google Drive\Daily Checks\Config\driveSpaceHosts.txt')
